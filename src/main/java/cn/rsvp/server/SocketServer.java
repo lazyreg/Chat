@@ -137,7 +137,7 @@ public class SocketServer {
         int room = connectInfo.getRoom();
         if (userInfo == null) {
           String userid = UUID.randomUUID().toString();
-          userInfo = new UserInfo(userid, room, name, printWriter);
+          userInfo =null;// new UserInfo(userid, room, name, printWriter);
           users.add(userInfo);
         } else {
           userInfo.setRoom(room);
@@ -177,7 +177,7 @@ public class SocketServer {
         }
 
         for (UserInfo user : userInfoList) {
-          PrintWriter pw = user.getPw();
+          PrintWriter pw = null;//user.getPw();
           pw.println(content);
           pw.flush();
         }

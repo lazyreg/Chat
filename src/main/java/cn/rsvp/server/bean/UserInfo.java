@@ -1,6 +1,7 @@
 package cn.rsvp.server.bean;
 
 import java.io.PrintWriter;
+import java.nio.channels.SocketChannel;
 
 /**
  * @author Dai.Liangzhi (dlz@rsvptech.cn)
@@ -10,13 +11,13 @@ public class UserInfo {
   private String userid;
   private int room;
   private String name;
-  private PrintWriter pw;
+  private SocketChannel channel;
 
-  public UserInfo(String userid, int room, String name, PrintWriter pw) {
+  public UserInfo(String userid, int room, String name, SocketChannel channel) {
     this.userid = userid;
     this.room = room;
     this.name = name;
-    this.pw = pw;
+    this.channel = channel;
   }
 
   public String getUserid() {
@@ -35,8 +36,8 @@ public class UserInfo {
     this.name = name;
   }
 
-  public PrintWriter getPw() {
-    return pw;
+  public SocketChannel getChannel() {
+    return channel;
   }
 
   public void setRoom(int room) {
