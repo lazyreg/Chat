@@ -1,6 +1,7 @@
 package cn.rsvp.server;
 
-import java.io.IOException;
+import cn.rsvp.server.socket.SocketServerChannel;
+import cn.rsvp.server.tomcat.TomcatServer;
 
 /**
  * @author Dai.Liangzhi (dlz@rsvptech.cn)
@@ -14,7 +15,9 @@ public class ChatServer {
     //new SocketServer(2882);
     //new SocketServer(2883);
 
-    SocketServerChannel channel = new SocketServerChannel(2881);
-    channel.listen();
+    //SocketServerChannel channel = new SocketServerChannel(2881);
+    //channel.listen();
+
+    new TomcatServer(2881);
   }
 }

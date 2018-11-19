@@ -1,4 +1,4 @@
-package cn.rsvp.server;
+package cn.rsvp.server.socket;
 
 import cn.rsvp.datatype.ChatInfo;
 import cn.rsvp.datatype.ConnectInfo;
