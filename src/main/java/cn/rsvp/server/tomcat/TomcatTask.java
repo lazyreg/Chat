@@ -32,6 +32,8 @@ public class TomcatTask {
         if (strMsg != null) {
           printWriter.println(strMsg);
           printWriter.flush();
+
+          break;
         }
 
         System.out.println("this thread=" + Thread.currentThread().toString() + "  str=" + strMsg);

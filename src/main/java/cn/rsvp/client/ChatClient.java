@@ -106,6 +106,14 @@ public class ChatClient extends JFrame {
         }
       } catch (Exception e) {
         System.out.println("socket close");
+        if (socket != null && !socket.isClosed()) {
+          try {
+            socket.close();
+          } catch (IOException e1) {
+            e1.printStackTrace();
+          }
+          socket = null;
+        }
       }
     }
   }
@@ -144,11 +152,23 @@ public class ChatClient extends JFrame {
         messageInfo.setTimestamp(System.currentTimeMillis());
         String response = messageInfo.toJsonString();
 
-        //通过输出流将数据发送给服务器
-        pWriter.println(response);
-        pWriter.flush();
-        //清空文本框
-        txtSend.setText("");
+        try {
+          //通过输出流将数据发送给服务器
+          pWriter.println(response);
+          pWriter.flush();
+          //清空文本框
+          txtSend.setText("");
+        } catch (Exception e1) {
+          if (socket != null && !socket.isClosed()) {
+            try {
+              socket.close();
+            } catch (IOException e2) {
+              e2.printStackTrace();
+            }
+          }
+          socket = null;
+          e1.printStackTrace();
+        }
       }
     }
   }
