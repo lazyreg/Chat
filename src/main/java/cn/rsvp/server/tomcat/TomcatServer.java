@@ -71,7 +71,7 @@ public class TomcatServer {
     public void run() {
       while (true) {
         try {
-          System.out.println("socket accept");
+          System.out.println("socket accept wait");
           //接收一个客户端Socket对象
           Socket socket = serverSocket.accept();
           if (socket != null) {
@@ -107,6 +107,7 @@ public class TomcatServer {
     public void run() {
       while (true) {
         try {
+          System.out.println("tomcatTask take wait");
           TomcatTask tomcatTask = tasks.take();
           System.out.println("tomcatTask=" + tomcatTask.toString());
           tomcatTask.procss();
