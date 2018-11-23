@@ -40,7 +40,7 @@ public class ChatClient extends JFrame {
   JButton btnSend;
 
   JPanel panelRoom;
-  JButton btnRoom1, btnRoom2, btnRoom3;
+  JButton btnRoom1, btnRoom2, btnRoom3, btnRoom4;
   JLabel txtRoom;
 
   private int curRoom = -1;
@@ -70,12 +70,14 @@ public class ChatClient extends JFrame {
     btnRoom2 = new JButton("聊天室2");
     btnRoom3 = new JButton("聊天室3");
     txtRoom = new JLabel("当前聊天室:无");
+    btnRoom4 = new JButton("退出");
 
     panelRoom = new JPanel();
     panelRoom.add(btnRoom1);
     panelRoom.add(btnRoom2);
     panelRoom.add(btnRoom3);
     panelRoom.add(txtRoom);
+    panelRoom.add(btnRoom4);
     this.add(panelRoom, BorderLayout.NORTH);
 
     this.add(sPane);
@@ -88,6 +90,8 @@ public class ChatClient extends JFrame {
     btnRoom1.addActionListener(new RoomBtnListener(1));
     btnRoom2.addActionListener(new RoomBtnListener(2));
     btnRoom3.addActionListener(new RoomBtnListener(3));
+    btnRoom4.addActionListener(new RoomBtnListener(0));
+    btnRoom4.setVisible(false);
   }
 
   //接受服务器读返回信息读线程
@@ -187,8 +191,24 @@ public class ChatClient extends JFrame {
         return;
       }
 
+      if (room == 0) {
+        txtRoom.setText("当前聊天室:无");
+        txtContent.setText("");
+        btnRoom4.setVisible(false);
+        if (socket != null) {
+          try {
+            socket.close();
+          } catch (IOException e1) {
+            e1.printStackTrace();
+          }
+          socket = null;
+        }
+        return;
+      }
+
       curRoom = room;
       txtRoom.setText("当前聊天室:" + room);
+      btnRoom4.setVisible(true);
       txtContent.setText("");
 
       if (socket == null) {

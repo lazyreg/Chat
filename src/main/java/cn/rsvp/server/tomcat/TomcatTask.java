@@ -29,13 +29,11 @@ public class TomcatTask {
         }
 
         String strMsg = bReader.readLine();
-        if (strMsg != null) {
-          printWriter.println(strMsg);
-          printWriter.flush();
-
+        if (strMsg == null) {
           break;
         }
-
+        printWriter.println(strMsg);
+        printWriter.flush();
         System.out.println("this thread=" + Thread.currentThread().toString() + "  str=" + strMsg);
       }
     } catch (IOException e) {

@@ -4,6 +4,7 @@ import cn.rsvp.datatype.ChatInfo;
 import cn.rsvp.datatype.ConnectInfo;
 import cn.rsvp.datatype.MessageInfo;
 import cn.rsvp.server.bean.UserInfo;
+import cn.rsvp.server.tomcat.TomcatTask;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -26,6 +27,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * @author Dai.Liangzhi (dlz@rsvptech.cn)
@@ -37,52 +39,75 @@ public class SocketServerChannel {
   //输入流列表集合
   private Map<String, UserInfo> users;
   private Map<Integer, List<String>> rooms;
+  private ConcurrentLinkedQueue<Info> mQueue;
 
   public SocketServerChannel(int port) {
     try {
+      users = new HashMap<>();
+      rooms = new HashMap<>();
+      mQueue = new ConcurrentLinkedQueue<>();
+
       ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
       serverSocketChannel.configureBlocking(false);
       serverSocketChannel.socket().bind(new InetSocketAddress(port));
       this.selector = Selector.open();
       serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 
-      users = new HashMap<>();
-      rooms = new HashMap<>();
+      new SelectorThread().start();
+      TaskThread taskThread = new TaskThread();
+      taskThread.setDaemon(true);
+      taskThread.start();
     } catch (IOException e) {
       e.printStackTrace();
     }
     System.out.println(port + "端口服务已经启动...");
   }
 
-  public void listen() {
-    Thread thread1 = new Thread(new Runnable() {
-      @Override
-      public void run() {
-        System.out.println("thread 监听开启");
-        try {
-          while (true) {
-            selector.select();
-            Iterator<SelectionKey> iterator = selector.selectedKeys().iterator();
-            while (iterator.hasNext()) {
-              SelectionKey key = iterator.next();
-              iterator.remove();
-              handler(key);
+  class SelectorThread extends Thread {
+    @Override
+    public void run() {
+      System.out.println("thread 监听开启");
+      try {
+        int count =10;
+        while (count>0) {
+          System.out.println("---select---");
+          selector.select();
+          Iterator<SelectionKey> iterator = selector.selectedKeys().iterator();
+          while (iterator.hasNext()) {
+            SelectionKey key = iterator.next();
+            iterator.remove();
+
+            if (key.isAcceptable()) {
+              handlerAccept(key);
+            } else if (key.isReadable()) {
+              handlerReader(key);
             }
           }
-        } catch (Exception e) {
-          e.printStackTrace();
+          count--;
         }
-        System.out.println("thread1 监听结束");
+      } catch (Exception e) {
+        e.printStackTrace();
       }
-    });
-    thread1.start();
+      System.out.println("thread 监听结束");
+    }
   }
 
-  private void handler(SelectionKey key) {
-    if (key.isAcceptable()) {
-      handlerAccept(key);
-    } else if (key.isReadable()) {
-      handlerReader(key);
+  class TaskThread extends Thread {
+    @Override
+    public void run() {
+      while (true) {
+        if (mQueue.isEmpty()) {
+          try {
+            Thread.sleep(50);
+          } catch (InterruptedException e) {
+            e.printStackTrace();
+          }
+          continue;
+        }
+
+        Info key = mQueue.poll();
+        processMsg(key.userid, key.messageInfo);
+      }
     }
   }
 
@@ -124,7 +149,8 @@ public class SocketServerChannel {
           System.out.println("服务端收到信息:" + strMsg);
           MessageInfo messageInfo = MessageInfo.parseJsonString(strMsg);
           if (messageInfo != null) {
-            processMsg(socketChannel.toString(), messageInfo);
+            mQueue.offer(new Info(socketChannel.toString(), messageInfo));
+            //processMsg(socketChannel.toString(), messageInfo);
           }
         }
         buffer.clear();
@@ -141,6 +167,16 @@ public class SocketServerChannel {
       } catch (IOException e1) {
         e1.printStackTrace();
       }
+    }
+  }
+
+  class Info {
+    String userid;
+    MessageInfo messageInfo;
+
+    Info(String userid, MessageInfo messageInfo) {
+      this.messageInfo = messageInfo;
+      this.userid = userid;
     }
   }
 

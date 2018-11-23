@@ -3,7 +3,9 @@ package cn.rsvp.server.tomcat;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * @author Dai.Liangzhi (dlz@rsvptech.cn)
@@ -19,8 +21,8 @@ public class TomcatServer {
   //队列
   private ConcurrentLinkedQueue<TomcatThread> mIdleThread;
   private ConcurrentLinkedQueue<TomcatThread> mWorkerThread;
-  private ConcurrentLinkedQueue<TomcatThread> mGCThread;
-  private ConcurrentLinkedQueue<TomcatTask> mWait;
+  private ConcurrentLinkedQueue<TomcatTask> mWaitTask;
+  private BlockingQueue<TomcatThread> mRecoveryThread;
 
   //计数器
   private int workerCount = 0;
@@ -39,7 +41,7 @@ public class TomcatServer {
 
       //创建接受Socket读线程实例，并启动
       new AcceptSocketThread().start();
-      new GcThread().start();
+      new RecoveryThread().start();
     } catch (IOException e) {
       e.printStackTrace();
     }
@@ -52,8 +54,8 @@ public class TomcatServer {
   private void initThread() {
     mIdleThread = new ConcurrentLinkedQueue<>();
     mWorkerThread = new ConcurrentLinkedQueue<>();
-    mGCThread = new ConcurrentLinkedQueue<>();
-    mWait = new ConcurrentLinkedQueue<>();
+    mWaitTask = new ConcurrentLinkedQueue<>();
+    mRecoveryThread = new LinkedBlockingQueue<>();
 
     for (int i = 0; i < MIN_SPARE_THREAD; i++) {
       TomcatThread thread = new TomcatThread();
@@ -86,47 +88,33 @@ public class TomcatServer {
    * Tomcat线程
    */
   public class TomcatThread extends Thread {
-    private TomcatTask tomcatTask;
-    private boolean isStart;
+    private BlockingQueue<TomcatTask> tasks;
 
     public TomcatThread() {
-      tomcatTask = null;
-      isStart = false;
+      tasks = new LinkedBlockingQueue<>();
     }
 
-    public TomcatThread(TomcatTask tomcatTask, boolean isStart) {
-      this.tomcatTask = tomcatTask;
-      this.isStart = isStart;
+    public TomcatThread(TomcatTask tomcatTask) {
+      tasks = new LinkedBlockingQueue<>();
+      tasks.offer(tomcatTask);
     }
 
-    public void setTomcatTask(TomcatTask tomcatTask) {
-      this.tomcatTask = tomcatTask;
-    }
-
-    public void threadStart() {
-      isStart = true;
+    public void addTomcatTask(TomcatTask tomcatTask) {
+      tasks.offer(tomcatTask);
     }
 
     @Override
     public void run() {
       while (true) {
-        if (!isStart) {
-          try {
-            Thread.sleep(50);
-          } catch (InterruptedException e) {
-            e.printStackTrace();
-          }
-          continue;
-        }
-
         try {
+          TomcatTask tomcatTask = tasks.take();
           System.out.println("tomcatTask=" + tomcatTask.toString());
           tomcatTask.procss();
         } catch (Exception e) {
           e.printStackTrace();
         }
-        mGCThread.add(this);
-        isStart = false;
+
+        mRecoveryThread.offer(TomcatThread.this);
       }
     }
   }
@@ -134,23 +122,17 @@ public class TomcatServer {
   /**
    * 回收线程
    */
-  public class GcThread extends Thread {
+  public class RecoveryThread extends Thread {
 
     @Override
     public void run() {
       try {
         while (true) {
-          if (mGCThread.isEmpty()) {
-            Thread.sleep(50);
-            continue;
-          }
-
-          TomcatThread tomcatThread = mGCThread.poll();
+          TomcatThread tomcatThread = mRecoveryThread.take();
           System.out.println("this thread=" + tomcatThread.toString() + "  GC");
           if (waitCount > 0) {
-            TomcatTask tomcatTask = mWait.poll();
-            tomcatThread.setTomcatTask(tomcatTask);
-            tomcatThread.threadStart();
+            TomcatTask tomcatTask = mWaitTask.poll();
+            tomcatThread.addTomcatTask(tomcatTask);
             waitCount--;
           } else {
             mWorkerThread.remove(tomcatThread);
@@ -191,18 +173,17 @@ public class TomcatServer {
       TomcatTask tomcatTask = new TomcatTask(socket);
       if (mIdleThread.size() > 0) {
         TomcatThread thread = mIdleThread.poll();
-        thread.setTomcatTask(tomcatTask);
-        thread.threadStart();
+        thread.addTomcatTask(tomcatTask);
         mWorkerThread.offer(thread);
       } else {
-        TomcatThread thread = new TomcatThread(tomcatTask, true);
+        TomcatThread thread = new TomcatThread(tomcatTask);
         thread.start();
         mWorkerThread.offer(thread);
       }
       workerCount++;
     } else if (waitCount < ACCEPT_COUNT) {
       TomcatTask tomcatTask = new TomcatTask(socket);
-      mWait.offer(tomcatTask);
+      mWaitTask.offer(tomcatTask);
       waitCount++;
     }
 

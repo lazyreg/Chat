@@ -15,8 +15,7 @@ public class ChatServer {
     //new SocketServer(2882);
     //new SocketServer(2883);
 
-    //SocketServerChannel channel = new SocketServerChannel(2881);
-    //channel.listen();
+    //new SocketServerChannel(2881);
 
     new TomcatServer(2881);
   }
